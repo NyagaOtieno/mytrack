@@ -1,0 +1,38 @@
+2025-11-11 22:34:00.709 EAT [15344] LOG:  starting PostgreSQL 17.6 on x86_64-windows, compiled by msvc-19.44.35213, 64-bit
+2025-11-11 22:34:00.717 EAT [15344] LOG:  listening on IPv6 address "::1", port 5432
+2025-11-11 22:34:00.717 EAT [15344] LOG:  listening on IPv4 address "127.0.0.1", port 5432
+2025-11-11 22:34:01.005 EAT [15112] LOG:  database system was shut down at 2025-11-11 22:32:01 EAT
+2025-11-11 22:34:01.122 EAT [15344] LOG:  database system is ready to accept connections
+2025-11-11 22:39:01.001 EAT [13608] LOG:  checkpoint starting: time
+2025-11-11 22:40:48.893 EAT [13608] LOG:  checkpoint complete: wrote 1003 buffers (6.1%); 0 WAL file(s) added, 0 removed, 0 recycled; write=104.525 s, sync=3.138 s, total=107.893 s; sync files=314, longest=0.064 s, average=0.010 s; distance=4736 kB, estimate=4736 kB; lsn=0/1A090E0, redo lsn=0/1A09050
+2025-11-11 23:04:20.671 EAT [9420] LOG:  could not receive data from client: An existing connection was forcibly closed by the remote host.
+	
+2025-11-11 23:35:31.722 EAT [1404] FATAL:  no PostgreSQL user name specified in startup packet
+2025-11-11 23:35:31.870 EAT [14780] FATAL:  no PostgreSQL user name specified in startup packet
+2025-11-11 23:38:47.721 EAT [13004] FATAL:  no PostgreSQL user name specified in startup packet
+2025-11-11 23:38:47.774 EAT [14788] FATAL:  no PostgreSQL user name specified in startup packet
+2025-11-11 23:40:11.097 EAT [10180] FATAL:  no PostgreSQL user name specified in startup packet
+2025-11-11 23:40:11.147 EAT [15792] FATAL:  no PostgreSQL user name specified in startup packet
+2025-11-12 00:29:02.063 EAT [13608] LOG:  checkpoint starting: time
+2025-11-12 00:29:06.606 EAT [13608] LOG:  checkpoint complete: wrote 35 buffers (0.2%); 0 WAL file(s) added, 0 removed, 0 recycled; write=3.833 s, sync=0.517 s, total=4.544 s; sync files=31, longest=0.068 s, average=0.017 s; distance=131 kB, estimate=4275 kB; lsn=0/1A29EE0, redo lsn=0/1A29E88
+2025-11-12 00:39:48.519 EAT [11100] ERROR:  relation "devices" already exists
+2025-11-12 00:39:48.519 EAT [11100] STATEMENT:  CREATE TABLE devices (
+	    id SERIAL PRIMARY KEY,
+	    imei VARCHAR(20) UNIQUE NOT NULL,
+	    sim_number VARCHAR(20),
+	    vehicle_number VARCHAR(20),
+	    chassis_number VARCHAR(50)
+	);
+2025-11-12 00:39:48.571 EAT [11100] ERROR:  relation "positions" already exists
+2025-11-12 00:39:48.571 EAT [11100] STATEMENT:  CREATE TABLE positions (
+	    id SERIAL PRIMARY KEY,
+	    imei VARCHAR(20) REFERENCES devices(imei),
+	    ts TIMESTAMP NOT NULL,
+	    lat DOUBLE PRECISION,
+	    lon DOUBLE PRECISION,
+	    speed DOUBLE PRECISION
+	);
+2025-11-12 00:44:02.632 EAT [13608] LOG:  checkpoint starting: time
+2025-11-12 00:44:04.670 EAT [13608] LOG:  checkpoint complete: wrote 15 buffers (0.1%); 0 WAL file(s) added, 0 removed, 0 recycled; write=1.626 s, sync=0.284 s, total=2.039 s; sync files=16, longest=0.075 s, average=0.018 s; distance=62 kB, estimate=3854 kB; lsn=0/1A39930, redo lsn=0/1A398A0
+2025-11-12 01:32:20.919 EAT [12908] LOG:  could not receive data from client: An existing connection was forcibly closed by the remote host.
+	

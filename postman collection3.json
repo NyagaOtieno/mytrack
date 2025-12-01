@@ -1,0 +1,47 @@
+{
+  "info": {
+    "name": "FMB920 Server - Vehicles API",
+    "_postman_id": "f48e1c1a-1234-5678-abcd-9876543210ef",
+    "description": "Collection for creating and listing vehicles in FMB920 Server",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Create Vehicle",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"sim\": \"0712345678\",\n    \"vehicle_no\": \"KAA 123A\",\n    \"chassis_no\": \"CHS123456789\"\n}"
+        },
+        "url": {
+          "raw": "https://mytrack-production.up.railway.app/api/devices/create",
+          "protocol": "https",
+          "host": ["mytrack-production", "up", "railway", "app"],
+          "path": ["api", "devices", "create"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "List Vehicles",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://mytrack-production.up.railway.app/api/devices/list",
+          "protocol": "https",
+          "host": ["mytrack-production", "up", "railway", "app"],
+          "path": ["api", "devices", "list"]
+        }
+      },
+      "response": []
+    }
+  ]
+}

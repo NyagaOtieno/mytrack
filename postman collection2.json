@@ -1,0 +1,75 @@
+{
+  "info": {
+    "name": "MyTrack API",
+    "_postman_id": "c1f2a330-88f3-4ab3-8c1f-aa21f22190ef",
+    "description": "API collection for MyTrack server",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Create Vehicle",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": {
+          "raw": "https://mytrack-production.up.railway.app/api/vehicles",
+          "host": ["mytrack-production", "up", "railway", "app"],
+          "path": ["api", "vehicles"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"plate_number\":\"KDA123A\",\n    \"model\":\"Fielder\",\n    \"make\":\"Toyota\",\n    \"year\":2014,\n    \"owner_name\":\"John Doe\",\n    \"owner_id_number\":\"12345678\",\n    \"owner_phone\":\"0712345678\",\n    \"owner_email\":\"john@example.com\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Assign Vehicle to Device",
+      "request": {
+        "method": "PUT",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": {
+          "raw": "https://mytrack-production.up.railway.app/api/devices/{{imei}}/assign",
+          "host": ["mytrack-production", "up", "railway", "app"],
+          "path": ["api", "devices", "{{imei}}", "assign"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{ \"vehicle_id\": 3 }"
+        }
+      }
+    },
+    {
+      "name": "List Vehicles",
+      "request": {
+        "method": "GET",
+        "url": "https://mytrack-production.up.railway.app/api/vehicles"
+      }
+    },
+    {
+      "name": "Get Vehicle",
+      "request": {
+        "method": "GET",
+        "url": "https://mytrack-production.up.railway.app/api/vehicles/{{id}}"
+      }
+    },
+    {
+      "name": "Update Vehicle",
+      "request": {
+        "method": "PUT",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "https://mytrack-production.up.railway.app/api/vehicles/{{id}}",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"model\": \"Prado\",\n    \"owner_name\":\"Updated Name\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Delete Vehicle",
+      "request": {
+        "method": "DELETE",
+        "url": "https://mytrack-production.up.railway.app/api/vehicles/{{id}}"
+      }
+    }
+  ]
+}

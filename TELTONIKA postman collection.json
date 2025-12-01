@@ -1,0 +1,103 @@
+{
+  "info": {
+    "name": "FMB920 Server API (Railway) - With API Key",
+    "_postman_id": "fmb920-server-api-railway-keyed",
+    "description": "Postman collection for testing FMB920 Server API endpoints deployed on Railway with API key security",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Create Device",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "X-API-Key", "value": "x2AJdCzZaM5y8tPaui5of6qhuovc5SST7y-y6rR_fD0=" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"imei\": \"353691849836001\",\n  \"sim\": \"0712345678\",\n  \"vehicle_no\": \"KBC123A\",\n  \"chassis_no\": \"CH1234567890\"\n}"
+        },
+        "url": {
+          "raw": "https://mytrack-production.up.railway.app/api/devices/create",
+          "protocol": "https",
+          "host": ["mytrack-production","up","railway","app"],
+          "path": ["api","devices","create"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "List Devices",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "X-API-Key", "value": "x2AJdCzZaM5y8tPaui5of6qhuovc5SST7y-y6rR_fD0=" }
+        ],
+        "url": {
+          "raw": "https://mytrack-production.up.railway.app/api/devices/list",
+          "protocol": "https",
+          "host": ["mytrack-production","up","railway","app"],
+          "path": ["api","devices","list"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get Latest Position",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "X-API-Key", "value": "x2AJdCzZaM5y8tPaui5of6qhuovc5SST7y-y6rR_fD0=" }
+        ],
+        "url": {
+          "raw": "https://mytrack-production.up.railway.app/api/devices/latest?imei=353691849836001",
+          "protocol": "https",
+          "host": ["mytrack-production","up","railway","app"],
+          "path": ["api","devices","latest"],
+          "query": [
+            { "key": "imei", "value": "353691849836001" }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Dashboard HTML",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "X-API-Key", "value": "x2AJdCzZaM5y8tPaui5of6qhuovc5SST7y-y6rR_fD0=" }
+        ],
+        "url": {
+          "raw": "https://mytrack-production.up.railway.app/dashboard",
+          "protocol": "https",
+          "host": ["mytrack-production","up","railway","app"],
+          "path": ["dashboard"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Generate API Key",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "X-API-Key", "value": "x2AJdCzZaM5y8tPaui5of6qhuovc5SST7y-y6rR_fD0=" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"admin_id\": 1\n}"
+        },
+        "url": {
+          "raw": "https://mytrack-production.up.railway.app/api/api-keys",
+          "protocol": "https",
+          "host": ["mytrack-production","up","railway","app"],
+          "path": ["api","api-keys"]
+        }
+      },
+      "response": []
+    }
+  ]
+}
