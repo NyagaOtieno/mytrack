@@ -165,7 +165,7 @@ func CreateDevice(d Device) (int64, error) {
 	return insertDeviceLocally(ctx, d)
 }
 
-/* ---------------------- SAVE POSITIONS (FULLY RESILIENT) ---------------------- */
+/* ---------------------- SAVE POSITIONS ---------------------- */
 
 func SavePositions(list []Position) error {
 	if len(list) == 0 {
@@ -176,14 +176,11 @@ func SavePositions(list []Position) error {
 	deviceCache := make(map[int64]bool)
 
 	for _, p := range list {
-
-		// Validate coordinates
 		if p.Latitude == 0 || p.Longitude == 0 {
 			log.Printf("⚠ Skip device %d: invalid coords (%f,%f)", p.DeviceID, p.Latitude, p.Longitude)
 			continue
 		}
 
-		// Check device existence with in-memory cache
 		exists, ok := deviceCache[p.DeviceID]
 		if !ok {
 			err := Pool.QueryRow(ctx,
@@ -202,7 +199,6 @@ func SavePositions(list []Position) error {
 			continue
 		}
 
-		// Insert position safely
 		_, err := Pool.Exec(ctx,
 			`INSERT INTO positions 
 			 (device_id, lat, lng, speed, angle, altitude, satellites, timestamp, imei)
@@ -210,13 +206,12 @@ func SavePositions(list []Position) error {
 			p.DeviceID, p.Latitude, p.Longitude, p.Speed,
 			p.Angle, p.Altitude, p.Satellites, p.Timestamp, p.IMEI,
 		)
-
 		if err != nil {
 			log.Printf("❌ Position insert failed device %d: %v", p.DeviceID, err)
 			continue
 		}
 
-		// Update last location
+		// Update last location for convenience
 		if err := UpdateDeviceLastPosition(p.DeviceID, p.Latitude, p.Longitude); err != nil {
 			log.Printf("⚠ last_pos update failed %d: %v", p.DeviceID, err)
 		}
@@ -225,7 +220,6 @@ func SavePositions(list []Position) error {
 	return nil
 }
 
-/* small helpers */
 func SavePosition(p Position) error {
 	return SavePositions([]Position{p})
 }
@@ -257,8 +251,17 @@ func SavePositionRaw(deviceID int64, lat, lng, speed float64, angle, altitude, s
 func GetAllDevicesWithLastPosition() ([]Device, error) {
 	ctx := context.Background()
 	rows, err := Pool.Query(ctx,
-		`SELECT id, imei, sim_number, vehicle_number, chassis_number, last_lat, last_lng
-		 FROM devices ORDER BY id DESC`,
+		`SELECT d.id, d.imei, d.sim_number, d.vehicle_number, d.chassis_number,
+		        p.lat AS last_lat, p.lng AS last_lng
+		   FROM devices d
+		   LEFT JOIN LATERAL (
+		       SELECT lat, lng
+		         FROM positions
+		        WHERE device_id = d.id AND timestamp < now()
+		        ORDER BY timestamp DESC
+		        LIMIT 1
+		   ) p ON true
+		ORDER BY d.id DESC`,
 	)
 	if err != nil {
 		return nil, err
@@ -284,9 +287,16 @@ func GetAllDevicesWithVehicle() ([]DeviceWithVehicle, error) {
 			d.id, d.imei, d.sim_number,
 			v.id, v.vehicle_number, v.chassis_number,
 			v.owner_name, v.owner_id_number, v.owner_phone, v.owner_email,
-			d.last_lat, d.last_lng
+			p.lat AS last_lat, p.lng AS last_lng
 		 FROM devices d
 		 LEFT JOIN vehicles v ON d.vehicle_id = v.id
+		 LEFT JOIN LATERAL (
+		       SELECT lat, lng
+		         FROM positions
+		        WHERE device_id = d.id AND timestamp < now()
+		        ORDER BY timestamp DESC
+		        LIMIT 1
+		 ) p ON true
 		 ORDER BY d.id DESC`,
 	)
 	if err != nil {
@@ -317,10 +327,10 @@ func GetLatestPositionByIMEI(imei string) (*Position, error) {
 	ctx := context.Background()
 	row := Pool.QueryRow(ctx,
 		`SELECT device_id, imei, lat, lng, speed, angle, altitude, satellites, timestamp
-		 FROM positions
-		 WHERE imei=$1
-		 ORDER BY timestamp DESC
-		 LIMIT 1`, imei,
+		   FROM positions
+		  WHERE imei=$1 AND timestamp < now()
+		  ORDER BY timestamp DESC
+		  LIMIT 1`, imei,
 	)
 
 	var p Position
