@@ -47,7 +47,7 @@ func TrackHandler(w http.ResponseWriter, r *http.Request) {
 	var positions []storage.Position
 	var saved int
 
-	for i, p := range payload {
+	for _, p := range payload {
 		if p.Latitude == 0 || p.Longitude == 0 {
 			log.Println("⚠️ Skipping invalid lat/lng:", p)
 			continue
@@ -171,11 +171,13 @@ func LatestPositionsHandler(w http.ResponseWriter, r *http.Request) {
 
 	var latest []Latest
 	for _, d := range devices {
-		latest = append(latest, Latest{
-			IMEI:      d.IMEI,
-			Latitude:  d.LastLat,
-			Longitude: d.LastLng,
-		})
+		if d.LastLat != nil && d.LastLng != nil {
+			latest = append(latest, Latest{
+				IMEI:      d.IMEI,
+				Latitude:  *d.LastLat,
+				Longitude: *d.LastLng,
+			})
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
