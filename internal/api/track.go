@@ -1,7 +1,6 @@
 package api
 
 import (
-	"context"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -43,14 +42,20 @@ func TrackHandler(w http.ResponseWriter, r *http.Request) {
 
 	var payload []PositionPayload
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		log.Println("Failed to decode JSON:", err)
 		http.Error(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if len(payload) == 0 {
+		http.Error(w, "Empty payload", http.StatusBadRequest)
 		return
 	}
 
 	var positions []storage.Position
 	var saved int
 
-	for i, p := range payload {
+	for _, p := range payload {
 		if p.Latitude == 0 || p.Longitude == 0 {
 			log.Println("⚠️ Skipping invalid lat/lng:", p)
 			continue
@@ -102,8 +107,12 @@ func TrackHandler(w http.ResponseWriter, r *http.Request) {
 
 // parseTime converts timestamp string to time.Time, fallback to now
 func parseTime(ts string) time.Time {
+	if ts == "" {
+		return time.Now()
+	}
 	t, err := time.Parse(time.RFC3339, ts)
 	if err != nil {
+		log.Println("⚠️ Invalid timestamp, using now:", ts, err)
 		return time.Now()
 	}
 	return t
