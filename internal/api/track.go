@@ -10,6 +10,8 @@ import (
 	"fmb920-server/internal/storage"
 )
 
+// -------------------- PAYLOADS --------------------
+
 // PositionPayload represents incoming JSON payload for tracking
 type PositionPayload struct {
 	IMEI       string  `json:"imei"`
@@ -22,7 +24,17 @@ type PositionPayload struct {
 	Satellites int     `json:"satellites"`
 }
 
-// TrackHandler handles POST /api/track efficiently in bulk
+// DevicePayload represents payload for device creation
+type DevicePayload struct {
+	IMEI      string `json:"imei"`
+	SIM       string `json:"sim,omitempty"`
+	VehicleNo string `json:"vehicle_no,omitempty"`
+	ChassisNo string `json:"chassis_no,omitempty"`
+}
+
+// -------------------- TRACK HANDLER --------------------
+
+// TrackHandler receives positions and saves them reliably, supports bulk saving
 func TrackHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
@@ -31,52 +43,32 @@ func TrackHandler(w http.ResponseWriter, r *http.Request) {
 
 	var payload []PositionPayload
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		log.Println("Failed to decode JSON:", err)
 		http.Error(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	if len(payload) == 0 {
-		http.Error(w, "Empty payload", http.StatusBadRequest)
-		return
-	}
-
 	var positions []storage.Position
-	var savedCount int
+	var saved int
 
 	for i, p := range payload {
-		if p.IMEI == "" {
-			log.Printf("Skipping position at index %d: missing imei\n", i)
+		if p.Latitude == 0 || p.Longitude == 0 {
+			log.Println("⚠️ Skipping invalid lat/lng:", p)
 			continue
 		}
 
-		// Lookup device by IMEI
-		device, err := GetDeviceByIMEI(p.IMEI)
-		if err != nil || device == nil {
-			log.Printf("Skipping position at index %d: device not found (imei=%s)\n", i, p.IMEI)
+		// Get DeviceID from IMEI
+		devID, err := storage.GetDeviceIDByIMEI(p.IMEI)
+		if err != nil {
+			log.Println("❌ Unknown IMEI, skipping:", p.IMEI)
 			continue
-		}
-
-		lat, lng := p.Latitude, p.Longitude
-
-		// Skip invalid coordinates, fallback to last known
-		if lat == 0 || lng == 0 {
-			if device.LastLat != nil && device.LastLng != nil {
-				lat = *device.LastLat
-				lng = *device.LastLng
-				log.Printf("Using fallback coordinates for device %d: lat=%f, lng=%f\n", device.ID, lat, lng)
-			} else {
-				log.Printf("Skipping position at index %d: no valid coordinates\n", i)
-				continue
-			}
 		}
 
 		pos := storage.Position{
-			DeviceID:   device.ID,
+			DeviceID:   devID,
 			IMEI:       p.IMEI,
 			Timestamp:  parseTime(p.Timestamp),
-			Latitude:   lat,
-			Longitude:  lng,
+			Latitude:   p.Latitude,
+			Longitude:  p.Longitude,
 			Speed:      float64(p.Speed),
 			Angle:      float64(p.Angle),
 			Altitude:   float64(p.Altitude),
@@ -86,55 +78,176 @@ func TrackHandler(w http.ResponseWriter, r *http.Request) {
 		positions = append(positions, pos)
 
 		// Update device last known position immediately
-		if err := storage.UpdateDeviceLastPosition(device.ID, lat, lng); err != nil {
-			log.Println("⚠️ Failed to update last position for device", device.ID, err)
+		if err := storage.UpdateDeviceLastPosition(devID, pos.Latitude, pos.Longitude); err != nil {
+			log.Println("⚠️ Failed to update device last position:", err)
 		}
 
-		savedCount++
+		saved++
 	}
 
-	if len(positions) == 0 {
-		http.Error(w, "No valid positions to save", http.StatusBadRequest)
-		return
-	}
-
-	// Bulk save
-	if err := storage.SavePositions(positions); err != nil {
-		log.Println("Failed to save positions:", err)
-		http.Error(w, "Failed to save positions: "+err.Error(), http.StatusInternalServerError)
-		return
+	if len(positions) > 0 {
+		if err := storage.SavePositions(positions); err != nil {
+			log.Println("❌ Failed to save positions:", err)
+			http.Error(w, "Failed to save positions: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]any{
+	json.NewEncoder(w).Encode(map[string]interface{}{
 		"success":        true,
-		"positionsSaved": savedCount,
+		"positionsSaved": saved,
 	})
 }
 
-// parseTime parses timestamp string to time.Time, fallback to now if invalid
+// parseTime converts timestamp string to time.Time, fallback to now
 func parseTime(ts string) time.Time {
-	if ts == "" {
-		return time.Now()
-	}
 	t, err := time.Parse(time.RFC3339, ts)
 	if err != nil {
-		log.Println("Invalid timestamp, using now:", ts, err)
 		return time.Now()
 	}
 	return t
 }
 
-// GetDeviceByIMEI returns device info including last coordinates
-func GetDeviceByIMEI(imei string) (*storage.Device, error) {
-	ctx := context.Background()
-	var d storage.Device
-	err := storage.Pool.QueryRow(ctx,
-		`SELECT id, last_lat, last_lng FROM devices WHERE imei=$1`,
-		imei,
-	).Scan(&d.ID, &d.LastLat, &d.LastLng)
-	if err != nil {
-		return nil, err
+// -------------------- DEVICE HANDLERS --------------------
+
+func CreateDeviceHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
 	}
-	return &d, nil
+
+	var d DevicePayload
+	if err := json.NewDecoder(r.Body).Decode(&d); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	id, err := storage.CreateDevice(storage.Device{
+		IMEI:      d.IMEI,
+		SIM:       d.SIM,
+		VehicleNo: d.VehicleNo,
+		ChassisNo: d.ChassisNo,
+	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(map[string]int64{"id": id})
+}
+
+func DevicesListHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	devices, err := storage.GetAllDevicesWithLastPosition()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(devices)
+}
+
+func LatestPositionsHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	devices, err := storage.GetAllDevicesWithLastPosition()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	type Latest struct {
+		IMEI      string  `json:"imei"`
+		Latitude  float64 `json:"latitude"`
+		Longitude float64 `json:"longitude"`
+	}
+
+	var latest []Latest
+	for _, d := range devices {
+		lat, lng := 0.0, 0.0
+		if d.LastLat != nil {
+			lat = *d.LastLat
+		}
+		if d.LastLng != nil {
+			lng = *d.LastLng
+		}
+
+		latest = append(latest, Latest{
+			IMEI:      d.IMEI,
+			Latitude:  lat,
+			Longitude: lng,
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(latest)
+}
+
+// -------------------- DASHBOARD --------------------
+
+func DashboardHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	html := `<!DOCTYPE html>
+<html>
+<head>
+	<title>Device Dashboard</title>
+	<style>
+		table {border-collapse: collapse; width: 100%;}
+		th, td {border: 1px solid #ddd; padding: 8px;}
+		th {background-color: #f2f2f2;}
+	</style>
+</head>
+<body>
+	<h2>Devices Dashboard</h2>
+	<table id="devices">
+		<thead>
+			<tr>
+				<th>IMEI</th>
+				<th>SIM</th>
+				<th>Vehicle</th>
+				<th>Chassis</th>
+				<th>Last Latitude</th>
+				<th>Last Longitude</th>
+			</tr>
+		</thead>
+		<tbody></tbody>
+	</table>
+	<script>
+		async function loadDevices() {
+			const res = await fetch('/api/devices/list');
+			const devices = await res.json();
+			const tbody = document.querySelector('#devices tbody');
+			tbody.innerHTML = '';
+			devices.forEach(d => {
+				tbody.innerHTML += '<tr>' +
+					'<td>' + d.imei + '</td>' +
+					'<td>' + (d.sim||'') + '</td>' +
+					'<td>' + (d.vehicle_no||'') + '</td>' +
+					'<td>' + (d.chassis_no||'') + '</td>' +
+					'<td>' + (d.last_lat||'') + '</td>' +
+					'<td>' + (d.last_lng||'') + '</td>' +
+				'</tr>';
+			});
+		}
+		loadDevices();
+		setInterval(loadDevices, 5000);
+	</script>
+</body>
+</html>`
+	w.Write([]byte(html))
 }
