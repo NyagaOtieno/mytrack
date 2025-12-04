@@ -17,9 +17,7 @@ import (
 // ----------------------- CORS MIDDLEWARE -----------------------
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
 		origin := r.Header.Get("Origin")
-
 		allowedOrigins := map[string]bool{
 			"https://trackmykid-webapp.vercel.app": true,
 			"http://localhost:5173":                true,
@@ -34,7 +32,7 @@ func corsMiddleware(next http.Handler) http.Handler {
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-API-Key")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 
-		if r.Method == "OPTIONS" {
+		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
@@ -89,7 +87,7 @@ func main() {
 	mux.HandleFunc("/health", storage.APIKeyAuthMiddleware(healthHandler))
 	mux.HandleFunc("/api/api-keys", storage.APIKeyAuthMiddleware(storage.CreateAPIKeyHandler))
 
-	// Admin route also requires API key
+	// Admin route
 	mux.HandleFunc("/api/admins", storage.APIKeyAuthMiddleware(createAdminHandler))
 
 	server := &http.Server{
@@ -104,7 +102,7 @@ func main() {
 	log.Fatal(server.ListenAndServe())
 }
 
-// ------------------- HTTP HANDLERS -------------------
+// ------------------- HANDLERS -------------------
 
 func createDeviceHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -284,7 +282,6 @@ func createAdminHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Hash password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(admin.Password), bcrypt.DefaultCost)
 	if err != nil {
 		http.Error(w, "Failed to hash password", http.StatusInternalServerError)
