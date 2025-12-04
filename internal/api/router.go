@@ -31,7 +31,7 @@ type DevicePayload struct {
 
 // -------------------- TRACK HANDLER --------------------
 
-// TrackHandler receives positions and saves them reliably
+// TrackHandler receives positions and saves them reliably, supports bulk saving
 func TrackHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
@@ -44,8 +44,10 @@ func TrackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var positions []storage.Position
 	var saved int
-	for _, p := range payload {
+
+	for i, p := range payload {
 		if p.Latitude == 0 || p.Longitude == 0 {
 			log.Println("⚠️ Skipping invalid lat/lng:", p)
 			continue
@@ -70,12 +72,9 @@ func TrackHandler(w http.ResponseWriter, r *http.Request) {
 			Satellites: p.Satellites,
 		}
 
-		if err := storage.SavePosition(pos); err != nil {
-			log.Println("❌ Failed to save position:", err, pos)
-			continue
-		}
+		positions = append(positions, pos)
 
-		// Update device last known position
+		// Update device last known position immediately
 		if err := storage.UpdateDeviceLastPosition(devID, pos.Latitude, pos.Longitude); err != nil {
 			log.Println("⚠️ Failed to update device last position:", err)
 		}
@@ -83,9 +82,17 @@ func TrackHandler(w http.ResponseWriter, r *http.Request) {
 		saved++
 	}
 
+	if len(positions) > 0 {
+		if err := storage.SavePositions(positions); err != nil {
+			log.Println("❌ Failed to save positions:", err)
+			http.Error(w, "Failed to save positions: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"success":       true,
+		"success":        true,
 		"positionsSaved": saved,
 	})
 }
@@ -143,7 +150,7 @@ func DevicesListHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(devices)
 }
-// LatestPositionsHandler returns the last known positions of all devices
+
 func LatestPositionsHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
