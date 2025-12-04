@@ -21,6 +21,7 @@ func corsMiddleware(next http.Handler) http.Handler {
 		origin := r.Header.Get("Origin")
 		allowedOrigins := map[string]bool{
 			"https://trackmykid-webapp.vercel.app": true,
+			"https://app.trackmykid.co.ke": true,
 			"http://localhost:5173":                true,
 		}
 
@@ -88,9 +89,13 @@ func main() {
 	mux.HandleFunc("/health", storage.APIKeyAuthMiddleware(healthHandler))
 	mux.HandleFunc("/api/api-keys", storage.APIKeyAuthMiddleware(storage.CreateAPIKeyHandler))
 	mux.HandleFunc("/api/admins", storage.APIKeyAuthMiddleware(createAdminHandler))
+	
+
+
 
 	// ---------------- MyTrack Proxy ----------------
-	mux.HandleFunc("/api/proxy/devices", myTrackProxyHandler)
+	mux.Handle("/api/mytrack", withCORS(http.HandlerFunc(api.MyTrackHandler)))
+
 
 	server := &http.Server{
 		Addr:         ":" + httpPort,
