@@ -2,15 +2,14 @@ package main
 
 import (
 	"encoding/json"
-	"io"
 	"log"
 	"net/http"
 	"os"
 	"strings"
 	"time"
 
-	"fmb920-server/internal/storage"
 	"fmb920-server/internal/api"
+	"fmb920-server/internal/storage"
 
 	"github.com/joho/godotenv"
 	"golang.org/x/crypto/bcrypt"
@@ -22,14 +21,12 @@ func corsMiddleware(next http.Handler) http.Handler {
 		origin := r.Header.Get("Origin")
 		allowedOrigins := map[string]bool{
 			"https://trackmykid-webapp.vercel.app": true,
-			"https://app.trackmykid.co.ke": true,
+			"https://app.trackmykid.co.ke":         true,
 			"http://localhost:5173":                true,
 		}
-
 		if allowedOrigins[origin] {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
 		}
-
 		w.Header().Set("Vary", "Origin")
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-API-Key")
@@ -39,34 +36,30 @@ func corsMiddleware(next http.Handler) http.Handler {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
-
 		next.ServeHTTP(w, r)
 	})
 }
 
+// ----------------------- ENV & DB -----------------------
 var (
 	httpPort   string
 	backendURL string
 )
 
 func init() {
-	// Load .env
-	if err := godotenv.Load(); err != nil {
-		log.Println("⚠️ No .env file found, relying on system environment variables")
-	}
+	// Load .env if exists
+	_ = godotenv.Load()
 
 	httpPort = getEnv("PORT", "8080")
-
-	// Set backend URL
 	backendURL = getEnv("BACKEND_URL", "")
+
 	if backendURL != "" {
 		storage.SetBackendURL(backendURL)
 		log.Println("✅ Backend URL set to:", backendURL)
 	} else {
-		log.Println("⚠️ BACKEND_URL not set, remote device creation will not work")
+		log.Println("⚠️ BACKEND_URL not set, remote device creation may not work")
 	}
 
-	// PostgreSQL
 	pgURL := getEnv("DATABASE_URL", "")
 	if pgURL == "" {
 		log.Fatal("❌ DATABASE_URL not set")
@@ -78,21 +71,26 @@ func init() {
 	log.Println("✅ PostgreSQL connected")
 }
 
+// ----------------------- MAIN -----------------------
 func main() {
 	mux := http.NewServeMux()
 
-	// ---------------- API ROUTES ----------------
+	// --- Device API ---
 	mux.Handle("/api/devices/create", corsMiddleware(storage.APIKeyAuthMiddleware(http.HandlerFunc(createDeviceHandler))))
 	mux.Handle("/api/devices/list", corsMiddleware(storage.APIKeyAuthMiddleware(http.HandlerFunc(devicesListHandler))))
 	mux.Handle("/api/devices/latest", corsMiddleware(storage.APIKeyAuthMiddleware(http.HandlerFunc(latestDeviceHandler))))
+
+	// --- Tracking ---
 	mux.Handle("/api/track", corsMiddleware(storage.APIKeyAuthMiddleware(http.HandlerFunc(api.TrackHandler))))
-	mux.Handle("/dashboard", corsMiddleware(storage.APIKeyAuthMiddleware(http.HandlerFunc(dashboardHandler))))
-	mux.Handle("/health", corsMiddleware(storage.APIKeyAuthMiddleware(http.HandlerFunc(healthHandler))))
+	mux.Handle("/api/mytrack", corsMiddleware(http.HandlerFunc(api.MyTrackHandler)))
+
+	// --- Admin / API Key ---
 	mux.Handle("/api/api-keys", corsMiddleware(storage.APIKeyAuthMiddleware(http.HandlerFunc(storage.CreateAPIKeyHandler))))
 	mux.Handle("/api/admins", corsMiddleware(storage.APIKeyAuthMiddleware(http.HandlerFunc(createAdminHandler))))
 
-	// ---------------- MyTrack Proxy ----------------
-	mux.Handle("/api/mytrack", corsMiddleware(http.HandlerFunc(api.MyTrackHandler)))
+	// --- Dashboard & Health ---
+	mux.Handle("/dashboard", corsMiddleware(storage.APIKeyAuthMiddleware(http.HandlerFunc(dashboardHandler))))
+	mux.Handle("/health", corsMiddleware(storage.APIKeyAuthMiddleware(http.HandlerFunc(healthHandler))))
 
 	server := &http.Server{
 		Addr:         ":" + httpPort,
@@ -106,7 +104,7 @@ func main() {
 	log.Fatal(server.ListenAndServe())
 }
 
-// ------------------- EXISTING HANDLERS -------------------
+// ------------------- HANDLERS -------------------
 
 // createDeviceHandler
 func createDeviceHandler(w http.ResponseWriter, r *http.Request) {
@@ -174,29 +172,6 @@ func latestDeviceHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(pos)
 }
 
-// httpTrackHandler
-func httpTrackHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	var positions []storage.Position
-	if err := json.NewDecoder(r.Body).Decode(&positions); err != nil {
-		http.Error(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	if err := storage.SavePositions(positions); err != nil {
-		log.Println("❌ SavePositions error:", err)
-		http.Error(w, "Failed to save positions: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]bool{"success": true})
-}
-
 // dashboardHandler
 func dashboardHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
@@ -255,7 +230,6 @@ async function loadDevices() {
 loadDevices();
 setInterval(loadDevices, 5000);
 </script>
-
 </body>
 </html>`
 
