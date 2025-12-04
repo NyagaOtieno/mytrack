@@ -85,7 +85,7 @@ func main() {
 	mux.HandleFunc("/api/devices/create", storage.APIKeyAuthMiddleware(createDeviceHandler))
 	mux.HandleFunc("/api/devices/list", storage.APIKeyAuthMiddleware(devicesListHandler))
 	mux.HandleFunc("/api/devices/latest", storage.APIKeyAuthMiddleware(latestDeviceHandler))
-	mux.HandleFunc("/api/track", httpTrackHandler)
+	mux.Handle("/api/track", corsMiddleware(http.HandlerFunc(api.TrackHandler)))
 	mux.HandleFunc("/dashboard", storage.APIKeyAuthMiddleware(dashboardHandler))
 	mux.HandleFunc("/health", storage.APIKeyAuthMiddleware(healthHandler))
 	mux.HandleFunc("/api/api-keys", storage.APIKeyAuthMiddleware(storage.CreateAPIKeyHandler))
