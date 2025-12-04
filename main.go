@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -32,7 +33,6 @@ func corsMiddleware(next http.Handler) http.Handler {
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-API-Key")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 
-		// Allow preflight OPTIONS requests to pass
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusOK)
 			return
@@ -54,6 +54,8 @@ func init() {
 	}
 
 	httpPort = getEnv("PORT", "8080")
+
+	// Set backend URL
 	backendURL = getEnv("BACKEND_URL", "")
 	if backendURL != "" {
 		storage.SetBackendURL(backendURL)
@@ -62,6 +64,7 @@ func init() {
 		log.Println("⚠️ BACKEND_URL not set, remote device creation will not work")
 	}
 
+	// PostgreSQL
 	pgURL := getEnv("DATABASE_URL", "")
 	if pgURL == "" {
 		log.Fatal("❌ DATABASE_URL not set")
@@ -86,6 +89,9 @@ func main() {
 	mux.HandleFunc("/api/api-keys", storage.APIKeyAuthMiddleware(storage.CreateAPIKeyHandler))
 	mux.HandleFunc("/api/admins", storage.APIKeyAuthMiddleware(createAdminHandler))
 
+	// ---------------- MyTrack Proxy ----------------
+	mux.HandleFunc("/api/proxy/devices", myTrackProxyHandler)
+
 	server := &http.Server{
 		Addr:         ":" + httpPort,
 		Handler:      corsMiddleware(mux),
@@ -98,7 +104,53 @@ func main() {
 	log.Fatal(server.ListenAndServe())
 }
 
-// ------------------- HANDLERS -------------------
+// ------------------- MyTrack Proxy Handler -------------------
+func myTrackProxyHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet && r.Method != http.MethodOptions {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	token := os.Getenv("MYTRACK_API_KEY")
+	if token == "" {
+		http.Error(w, "API key not set", http.StatusInternalServerError)
+		return
+	}
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	req, err := http.NewRequest("GET", "https://mytrack-production.up.railway.app/api/devices/list", nil)
+	if err != nil {
+		http.Error(w, "Failed to create request", http.StatusInternalServerError)
+		return
+	}
+	req.Header.Set("X-API-Key", token)
+
+	resp, err := client.Do(req)
+	if err != nil {
+		http.Error(w, "Failed to fetch devices", http.StatusInternalServerError)
+		log.Println("Error fetching devices:", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		http.Error(w, "Failed to read response", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(body)
+}
+
+// ------------------- EXISTING HANDLERS -------------------
+
+// createDeviceHandler
 func createDeviceHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
@@ -127,6 +179,7 @@ func createDeviceHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]int64{"id": id})
 }
 
+// devicesListHandler
 func devicesListHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
@@ -144,6 +197,7 @@ func devicesListHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(devices)
 }
 
+// latestDeviceHandler
 func latestDeviceHandler(w http.ResponseWriter, r *http.Request) {
 	imei := r.URL.Query().Get("imei")
 	if r.Method != http.MethodGet || imei == "" {
@@ -162,6 +216,7 @@ func latestDeviceHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(pos)
 }
 
+// httpTrackHandler
 func httpTrackHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
@@ -184,6 +239,7 @@ func httpTrackHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]bool{"success": true})
 }
 
+// dashboardHandler
 func dashboardHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
@@ -249,6 +305,7 @@ setInterval(loadDevices, 5000);
 	w.Write([]byte(html))
 }
 
+// healthHandler
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	if err := storage.PingDB(); err != nil {
 		http.Error(w, "Database connection failed", http.StatusServiceUnavailable)
@@ -257,6 +314,7 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("OK"))
 }
 
+// createAdminHandler
 func createAdminHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
