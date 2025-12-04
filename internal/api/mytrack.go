@@ -22,7 +22,6 @@ func MyTrackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Context with timeout to prevent hanging requests
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
 
@@ -53,14 +52,9 @@ func MyTrackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Transform to only IMEI + coordinates
 	var output []map[string]interface{}
 	for _, d := range devices {
-		out := map[string]interface{}{
-			"IMEI": d["IMEI"],
-		}
-
-		// Extract LastLat / LastLng if available
+		out := map[string]interface{}{"IMEI": d["IMEI"]}
 		if lat, ok := d["LastLat"].(float64); ok {
 			out["Latitude"] = lat
 		}

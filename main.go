@@ -2,7 +2,7 @@ package main
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -81,30 +81,22 @@ func init() {
 func main() {
 	mux := http.NewServeMux()
 
-	// API routes wrapped with API key middleware
-	mux.HandleFunc("/api/devices/create", storage.APIKeyAuthMiddleware(createDeviceHandler))
-	mux.HandleFunc("/api/devices/list", storage.APIKeyAuthMiddleware(devicesListHandler))
-	mux.HandleFunc("/api/devices/latest", storage.APIKeyAuthMiddleware(latestDeviceHandler))
-	mux.Handle("/api/track", corsMiddleware(http.HandlerFunc(api.TrackHandler)))
-	mux.HandleFunc("/dashboard", storage.APIKeyAuthMiddleware(dashboardHandler))
-	mux.HandleFunc("/health", storage.APIKeyAuthMiddleware(healthHandler))
-	mux.HandleFunc("/api/api-keys", storage.APIKeyAuthMiddleware(storage.CreateAPIKeyHandler))
-	mux.HandleFunc("/api/admins", storage.APIKeyAuthMiddleware(createAdminHandler))
-	
-
-
+	// ---------------- API ROUTES ----------------
+	mux.Handle("/api/devices/create", corsMiddleware(storage.APIKeyAuthMiddleware(http.HandlerFunc(createDeviceHandler))))
+	mux.Handle("/api/devices/list", corsMiddleware(storage.APIKeyAuthMiddleware(http.HandlerFunc(devicesListHandler))))
+	mux.Handle("/api/devices/latest", corsMiddleware(storage.APIKeyAuthMiddleware(http.HandlerFunc(latestDeviceHandler))))
+	mux.Handle("/api/track", corsMiddleware(storage.APIKeyAuthMiddleware(http.HandlerFunc(api.TrackHandler))))
+	mux.Handle("/dashboard", corsMiddleware(storage.APIKeyAuthMiddleware(http.HandlerFunc(dashboardHandler))))
+	mux.Handle("/health", corsMiddleware(storage.APIKeyAuthMiddleware(http.HandlerFunc(healthHandler))))
+	mux.Handle("/api/api-keys", corsMiddleware(storage.APIKeyAuthMiddleware(http.HandlerFunc(storage.CreateAPIKeyHandler))))
+	mux.Handle("/api/admins", corsMiddleware(storage.APIKeyAuthMiddleware(http.HandlerFunc(createAdminHandler))))
 
 	// ---------------- MyTrack Proxy ----------------
-     mux.Handle("/api/mytrack", corsMiddleware(http.HandlerFunc(api.MyTrackHandler)))
-
-
-
-
-
+	mux.Handle("/api/mytrack", corsMiddleware(http.HandlerFunc(api.MyTrackHandler)))
 
 	server := &http.Server{
 		Addr:         ":" + httpPort,
-		Handler:      corsMiddleware(mux),
+		Handler:      mux,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  30 * time.Second,
@@ -112,50 +104,6 @@ func main() {
 
 	log.Println("🚀 HTTP server listening on port", httpPort)
 	log.Fatal(server.ListenAndServe())
-}
-
-// ------------------- MyTrack Proxy Handler -------------------
-func myTrackProxyHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet && r.Method != http.MethodOptions {
-		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	if r.Method == http.MethodOptions {
-		w.WriteHeader(http.StatusOK)
-		return
-	}
-
-	token := os.Getenv("MYTRACK_API_KEY")
-	if token == "" {
-		http.Error(w, "API key not set", http.StatusInternalServerError)
-		return
-	}
-
-	client := &http.Client{Timeout: 10 * time.Second}
-	req, err := http.NewRequest("GET", "https://mytrack-production.up.railway.app/api/devices/list", nil)
-	if err != nil {
-		http.Error(w, "Failed to create request", http.StatusInternalServerError)
-		return
-	}
-	req.Header.Set("X-API-Key", token)
-
-	resp, err := client.Do(req)
-	if err != nil {
-		http.Error(w, "Failed to fetch devices", http.StatusInternalServerError)
-		log.Println("Error fetching devices:", err)
-		return
-	}
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		http.Error(w, "Failed to read response", http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(body)
 }
 
 // ------------------- EXISTING HANDLERS -------------------
