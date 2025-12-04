@@ -21,7 +21,13 @@ func ValidateAPIKey(apiKey string) (bool, error) {
 // APIKeyAuthMiddleware wraps HTTP handlers to require a valid API key
 func APIKeyAuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		apiKey := r.Header.Get("X-API-Key") // Clients must send X-API-Key header
+		// Allow preflight OPTIONS requests without API key
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		apiKey := r.Header.Get("X-API-Key")
 		if apiKey == "" {
 			http.Error(w, "API key required", http.StatusUnauthorized)
 			return

@@ -32,6 +32,7 @@ func corsMiddleware(next http.Handler) http.Handler {
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-API-Key")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 
+		// Allow preflight OPTIONS requests to pass
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusOK)
 			return
@@ -53,8 +54,6 @@ func init() {
 	}
 
 	httpPort = getEnv("PORT", "8080")
-
-	// Set backend URL
 	backendURL = getEnv("BACKEND_URL", "")
 	if backendURL != "" {
 		storage.SetBackendURL(backendURL)
@@ -63,7 +62,6 @@ func init() {
 		log.Println("⚠️ BACKEND_URL not set, remote device creation will not work")
 	}
 
-	// PostgreSQL
 	pgURL := getEnv("DATABASE_URL", "")
 	if pgURL == "" {
 		log.Fatal("❌ DATABASE_URL not set")
@@ -86,8 +84,6 @@ func main() {
 	mux.HandleFunc("/dashboard", storage.APIKeyAuthMiddleware(dashboardHandler))
 	mux.HandleFunc("/health", storage.APIKeyAuthMiddleware(healthHandler))
 	mux.HandleFunc("/api/api-keys", storage.APIKeyAuthMiddleware(storage.CreateAPIKeyHandler))
-
-	// Admin route
 	mux.HandleFunc("/api/admins", storage.APIKeyAuthMiddleware(createAdminHandler))
 
 	server := &http.Server{
@@ -103,7 +99,6 @@ func main() {
 }
 
 // ------------------- HANDLERS -------------------
-
 func createDeviceHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
@@ -262,8 +257,6 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("OK"))
 }
 
-// ------------------- ADMIN HANDLER -------------------
-
 func createAdminHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -300,7 +293,6 @@ func createAdminHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // ------------------- UTIL -------------------
-
 func getEnv(key, fallback string) string {
 	if v, ok := os.LookupEnv(key); ok && v != "" {
 		return v
