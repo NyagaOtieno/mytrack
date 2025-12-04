@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"fmb920-server/internal/storage"
+	"fmb920-server/internal/api"
 
 	"github.com/joho/godotenv"
 	"golang.org/x/crypto/bcrypt"
@@ -94,7 +95,11 @@ func main() {
 
 
 	// ---------------- MyTrack Proxy ----------------
-	mux.Handle("/api/mytrack", withCORS(http.HandlerFunc(api.MyTrackHandler)))
+     mux.Handle("/api/mytrack", corsMiddleware(http.HandlerFunc(api.MyTrackHandler)))
+
+
+
+
 
 
 	server := &http.Server{
