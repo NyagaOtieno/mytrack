@@ -61,7 +61,6 @@ func TrackHandler(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		// Get DeviceID from IMEI
 		devID, err := storage.GetDeviceIDByIMEI(p.IMEI)
 		if err != nil {
 			log.Println("❌ Unknown IMEI, skipping:", p.IMEI)
@@ -82,7 +81,6 @@ func TrackHandler(w http.ResponseWriter, r *http.Request) {
 
 		positions = append(positions, pos)
 
-		// Update device last known position immediately
 		if err := storage.UpdateDeviceLastPosition(devID, pos.Latitude, pos.Longitude); err != nil {
 			log.Println("⚠️ Failed to update device last position:", err)
 		}
