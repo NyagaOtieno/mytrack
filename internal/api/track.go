@@ -39,18 +39,19 @@ func TrackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Read API key and URL from environment variables
+	// Optional API key and URL (tracking still allowed if missing)
 	apiKey := os.Getenv("VITE_PUBLIC_MYTRACK")
 	apiURL := os.Getenv("VITE_API_URL")
-	if apiKey == "" || apiURL == "" {
-		log.Println("❌ Missing API key or URL in environment variables")
-		http.Error(w, "Server misconfiguration", http.StatusInternalServerError)
-		return
+	if apiKey == "" {
+		log.Println("⚠️ Warning: VITE_PUBLIC_MYTRACK not set (tracking still allowed)")
+	}
+	if apiURL == "" {
+		log.Println("⚠️ Warning: VITE_API_URL not set (tracking still allowed)")
 	}
 
 	var payload []PositionPayload
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		log.Printf("Failed to decode JSON: %v\n", err)
+		log.Printf("❌ Failed to decode JSON: %v\n", err)
 		http.Error(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -89,7 +90,7 @@ func TrackHandler(w http.ResponseWriter, r *http.Request) {
 
 		positions = append(positions, pos)
 
-		// Update device last known position
+		// Update device last known position (log errors but continue)
 		if err := storage.UpdateDeviceLastPosition(devID, pos.Latitude, pos.Longitude); err != nil {
 			log.Println("⚠️ Failed to update device last position:", err)
 		}
@@ -108,7 +109,7 @@ func TrackHandler(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]interface{}{
 		"success":        true,
 		"positionsSaved": saved,
-		"api_url_used":   apiURL,  // optional, just for logging/debugging
+		"api_url_used":   apiURL, // optional, just for logging/debugging
 	})
 }
 
