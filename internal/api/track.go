@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"fmb920-server/internal/storage"
@@ -11,7 +12,6 @@ import (
 
 // -------------------- PAYLOADS --------------------
 
-// PositionPayload represents incoming JSON payload for tracking
 type PositionPayload struct {
 	IMEI       string  `json:"imei"`
 	Timestamp  string  `json:"timestamp"`
@@ -23,7 +23,6 @@ type PositionPayload struct {
 	Satellites int     `json:"satellites"`
 }
 
-// DevicePayload represents payload for device creation
 type DevicePayload struct {
 	IMEI      string `json:"imei"`
 	SIM       string `json:"sim,omitempty"`
@@ -37,6 +36,15 @@ type DevicePayload struct {
 func TrackHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Read API key and URL from environment variables
+	apiKey := os.Getenv("VITE_PUBLIC_MYTRACK")
+	apiURL := os.Getenv("VITE_API_URL")
+	if apiKey == "" || apiURL == "" {
+		log.Println("❌ Missing API key or URL in environment variables")
+		http.Error(w, "Server misconfiguration", http.StatusInternalServerError)
 		return
 	}
 
@@ -81,6 +89,7 @@ func TrackHandler(w http.ResponseWriter, r *http.Request) {
 
 		positions = append(positions, pos)
 
+		// Update device last known position
 		if err := storage.UpdateDeviceLastPosition(devID, pos.Latitude, pos.Longitude); err != nil {
 			log.Println("⚠️ Failed to update device last position:", err)
 		}
@@ -99,6 +108,7 @@ func TrackHandler(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]interface{}{
 		"success":        true,
 		"positionsSaved": saved,
+		"api_url_used":   apiURL,  // optional, just for logging/debugging
 	})
 }
 
@@ -211,7 +221,6 @@ func DashboardHandler(w http.ResponseWriter, r *http.Request) {
 
 // -------------------- UTILITIES --------------------
 
-// writeJSON writes JSON response safely
 func writeJSON(w http.ResponseWriter, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(data); err != nil {
@@ -219,7 +228,6 @@ func writeJSON(w http.ResponseWriter, data interface{}) {
 	}
 }
 
-// dashboardHTML holds the static dashboard HTML
 const dashboardHTML = `<!DOCTYPE html>
 <html>
 <head>
