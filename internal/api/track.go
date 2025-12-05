@@ -42,7 +42,7 @@ func TrackHandler(w http.ResponseWriter, r *http.Request) {
 
 	var payload []PositionPayload
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		log.Println("Failed to decode JSON:", err)
+		log.Printf("Failed to decode JSON: %v\n", err)
 		http.Error(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -98,8 +98,7 @@ func TrackHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	writeJSON(w, map[string]interface{}{
 		"success":        true,
 		"positionsSaved": saved,
 	})
@@ -144,7 +143,7 @@ func CreateDeviceHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]int64{"id": id})
+	writeJSON(w, map[string]int64{"id": id})
 }
 
 func DevicesListHandler(w http.ResponseWriter, r *http.Request) {
@@ -159,8 +158,7 @@ func DevicesListHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(devices)
+	writeJSON(w, devices)
 }
 
 func LatestPositionsHandler(w http.ResponseWriter, r *http.Request) {
@@ -181,7 +179,7 @@ func LatestPositionsHandler(w http.ResponseWriter, r *http.Request) {
 		Longitude float64 `json:"longitude"`
 	}
 
-	var latest []Latest
+	latest := make([]Latest, 0, len(devices))
 	for _, d := range devices {
 		lat, lng := 0.0, 0.0
 		if d.LastLat != nil {
@@ -198,8 +196,7 @@ func LatestPositionsHandler(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(latest)
+	writeJSON(w, latest)
 }
 
 // -------------------- DASHBOARD --------------------
@@ -211,7 +208,21 @@ func DashboardHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "text/html")
-	html := `<!DOCTYPE html>
+	w.Write([]byte(dashboardHTML))
+}
+
+// -------------------- UTILITIES --------------------
+
+// writeJSON writes JSON response safely
+func writeJSON(w http.ResponseWriter, data interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		log.Println("⚠️ Failed to write JSON response:", err)
+	}
+}
+
+// dashboardHTML holds the static dashboard HTML
+const dashboardHTML = `<!DOCTYPE html>
 <html>
 <head>
 	<title>Device Dashboard</title>
@@ -258,5 +269,3 @@ func DashboardHandler(w http.ResponseWriter, r *http.Request) {
 	</script>
 </body>
 </html>`
-	w.Write([]byte(html))
-}
