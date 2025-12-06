@@ -19,7 +19,7 @@ func ListLatestPositions() ([]models.LatestPosition, error) {
 			lng AS last_lng,
 			timestamp AS last_position_time
 		FROM positions
-		WHERE timestamp < now()
+		WHERE timestamp >= '2000-01-01' AND timestamp <= now()
 		ORDER BY device_id, timestamp DESC;
 	`)
 	if err != nil {
