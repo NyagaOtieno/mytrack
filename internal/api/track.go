@@ -39,19 +39,6 @@ func TrackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate API key if set
-	apiKey := os.Getenv("VITE_PUBLIC_MYTRACK")
-	if apiKey != "" {
-		clientKey := r.Header.Get("X-API-Key")
-		if clientKey != apiKey {
-			log.Println("❌ Invalid API key:", clientKey)
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return
-		}
-	} else {
-		log.Println("⚠️ Warning: VITE_PUBLIC_MYTRACK not set (tracking still allowed)")
-	}
-
 	apiURL := os.Getenv("VITE_API_URL")
 	if apiURL == "" {
 		log.Println("⚠️ Warning: VITE_API_URL not set (tracking still allowed)")
