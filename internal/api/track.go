@@ -32,7 +32,7 @@ type DevicePayload struct {
 
 // -------------------- TRACK HANDLER --------------------
 
-// TrackHandler receives positions and saves them reliably, supports bulk saving
+// TrackHandler receives positions and saves them reliably
 func TrackHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
@@ -46,7 +46,6 @@ func TrackHandler(w http.ResponseWriter, r *http.Request) {
 		log.Println("⚠️ Warning: VITE_API_URL not set (tracking still allowed)")
 	}
 
-	// Decode payload
 	var payload []PositionPayload
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 		log.Printf("Failed to decode JSON: %v\n", err)
@@ -88,7 +87,6 @@ func TrackHandler(w http.ResponseWriter, r *http.Request) {
 
 		positions = append(positions, pos)
 
-		// Update device last known position
 		if err := storage.UpdateDeviceLastPosition(devID, pos.Latitude, pos.Longitude); err != nil {
 			log.Println("⚠️ Failed to update device last position:", err)
 		}
@@ -111,7 +109,8 @@ func TrackHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// parseTime converts timestamp string to time.Time, fallback to now
+// -------------------- TIME PARSER --------------------
+
 func parseTime(ts string) time.Time {
 	if ts == "" {
 		return time.Now()
