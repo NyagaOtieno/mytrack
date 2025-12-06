@@ -39,6 +39,8 @@ func TrackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Println("⚠️ TrackHandler called; API key not required")
+
 	apiURL := os.Getenv("VITE_API_URL")
 	if apiURL == "" {
 		log.Println("⚠️ Warning: VITE_API_URL not set (tracking still allowed)")
