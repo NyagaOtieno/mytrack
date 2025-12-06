@@ -83,7 +83,7 @@ func main() {
 	mux.Handle("/api/devices/latest", corsMiddleware(storage.APIKeyAuthMiddleware(http.HandlerFunc(latestDeviceHandler))))
 
 	// --- Tracking ---
-	mux.Handle("/api/track", corsMiddleware(storage.APIKeyAuthMiddleware(http.HandlerFunc(trackHandlerWithLogging))))
+	mux.Handle("/api/track", corsMiddleware(http.HandlerFunc(trackHandlerWithLogging)))
 	mux.Handle("/api/mytrack", corsMiddleware(http.HandlerFunc(api.MyTrackHandler)))
 
 	// --- Admin / API Key ---
