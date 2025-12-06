@@ -98,6 +98,19 @@ func TrackHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// --- DEBUGGING 401 SOURCE ---
+	log.Println("✅ Positions processed:", saved)
+	log.Println("Client Headers:")
+	for k, v := range r.Header {
+		log.Printf("  %s: %v\n", k, v)
+	}
+	if auth := r.Header.Get("Authorization"); auth != "" {
+		log.Println("Authorization header present:", auth)
+	} else {
+		log.Println("No Authorization header present")
+	}
+	// --- END DEBUG ---
+
 	writeJSON(w, map[string]interface{}{
 		"success":        true,
 		"positionsSaved": saved,
