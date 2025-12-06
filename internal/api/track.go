@@ -33,6 +33,7 @@ type DevicePayload struct {
 // -------------------- TRACK HANDLER --------------------
 
 // TrackHandler receives positions and saves them reliably
+// No API key required for this endpoint
 func TrackHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
@@ -40,11 +41,6 @@ func TrackHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Println("⚠️ TrackHandler called; API key not required")
-
-	apiURL := os.Getenv("VITE_API_URL")
-	if apiURL == "" {
-		log.Println("⚠️ Warning: VITE_API_URL not set (tracking still allowed)")
-	}
 
 	var payload []PositionPayload
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
@@ -87,6 +83,7 @@ func TrackHandler(w http.ResponseWriter, r *http.Request) {
 
 		positions = append(positions, pos)
 
+		// Update last known position for the device
 		if err := storage.UpdateDeviceLastPosition(devID, pos.Latitude, pos.Longitude); err != nil {
 			log.Println("⚠️ Failed to update device last position:", err)
 		}
@@ -105,9 +102,9 @@ func TrackHandler(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]interface{}{
 		"success":        true,
 		"positionsSaved": saved,
-		"api_url_used":   apiURL,
 	})
 }
+
 
 // -------------------- TIME PARSER --------------------
 
