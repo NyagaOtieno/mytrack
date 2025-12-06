@@ -38,6 +38,7 @@ func corsMiddleware(next http.Handler) http.Handler {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
+
 		next.ServeHTTP(w, r)
 	})
 }
@@ -82,7 +83,7 @@ func main() {
 	mux.Handle("/api/devices/latest", corsMiddleware(storage.APIKeyAuthMiddleware(http.HandlerFunc(latestDeviceHandler))))
 
 	// --- Tracking ---
-	mux.Handle("/api/track", corsMiddleware(storage.APIKeyAuthMiddleware(http.HandlerFunc(api.TrackHandler))))
+	mux.Handle("/api/track", corsMiddleware(storage.APIKeyAuthMiddleware(http.HandlerFunc(trackHandlerWithLogging))))
 	mux.Handle("/api/mytrack", corsMiddleware(http.HandlerFunc(api.MyTrackHandler)))
 
 	// --- Admin / API Key ---
@@ -95,7 +96,7 @@ func main() {
 
 	server := &http.Server{
 		Addr:         ":" + httpPort,
-		Handler:      mux,
+		Handler:      loggingMiddleware(mux),
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  30 * time.Second,
@@ -103,6 +104,23 @@ func main() {
 
 	log.Println("🚀 HTTP server listening on port", httpPort)
 	log.Fatal(server.ListenAndServe())
+}
+
+// ------------------- TRACK HANDLER WITH LOGGING -------------------
+func trackHandlerWithLogging(w http.ResponseWriter, r *http.Request) {
+	apiKey := r.Header.Get("X-API-Key")
+	log.Printf("📡 /api/track called | Method: %s | API Key: %s | RemoteAddr: %s", r.Method, apiKey, r.RemoteAddr)
+	api.TrackHandler(w, r)
+}
+
+// ------------------- REQUEST LOGGING MIDDLEWARE -------------------
+func loggingMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		next.ServeHTTP(w, r)
+		duration := time.Since(start)
+		log.Printf("%s %s %s %v", r.Method, r.RequestURI, r.RemoteAddr, duration)
+	})
 }
 
 // ------------------- HANDLERS -------------------
