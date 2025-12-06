@@ -32,7 +32,7 @@ type DevicePayload struct {
 // -------------------- TRACK HANDLER --------------------
 
 // TrackHandler receives positions and saves them reliably
-// No API key required for this endpoint
+// API key is NOT required for this endpoint
 func TrackHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
@@ -97,19 +97,6 @@ func TrackHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-
-	// --- DEBUGGING 401 SOURCE ---
-	log.Println("✅ Positions processed:", saved)
-	log.Println("Client Headers:")
-	for k, v := range r.Header {
-		log.Printf("  %s: %v\n", k, v)
-	}
-	if auth := r.Header.Get("Authorization"); auth != "" {
-		log.Println("Authorization header present:", auth)
-	} else {
-		log.Println("No Authorization header present")
-	}
-	// --- END DEBUG ---
 
 	writeJSON(w, map[string]interface{}{
 		"success":        true,
