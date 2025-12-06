@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"os"
 	"time"
 
 	"fmb920-server/internal/storage"
@@ -104,7 +103,6 @@ func TrackHandler(w http.ResponseWriter, r *http.Request) {
 		"positionsSaved": saved,
 	})
 }
-
 
 // -------------------- TIME PARSER --------------------
 
