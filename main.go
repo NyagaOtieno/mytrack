@@ -14,6 +14,7 @@ import (
 	"github.com/joho/godotenv"
 	"golang.org/x/crypto/bcrypt"
 )
+go startRawDeviceListener()
 
 // ----------------------- CORS MIDDLEWARE -----------------------
 func corsMiddleware(next http.Handler) http.Handler {
