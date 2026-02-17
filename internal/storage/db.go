@@ -251,16 +251,22 @@ func SavePositionRaw(deviceID int64, lat, lng, speed float64, angle, altitude, s
 func GetAllDevicesWithLastPosition() ([]Device, error) {
 	ctx := context.Background()
 	rows, err := Pool.Query(ctx,
-		`SELECT d.id, d.imei, d.sim_number, d.vehicle_number, d.chassis_number,
-		        p.lat AS last_lat, p.lng AS last_lng
-		   FROM devices d
-		   LEFT JOIN LATERAL (
-		       SELECT lat, lng
-		         FROM positions
-		        WHERE device_id = d.id AND timestamp < now()
-		        ORDER BY timestamp DESC
-		        LIMIT 1
-		   ) p ON true
+		`SELECT
+			d.id,
+			d.imei,
+			COALESCE(d.sim_number, '')     AS sim_number,
+			COALESCE(d.vehicle_number, '') AS vehicle_number,
+			COALESCE(d.chassis_number, '') AS chassis_number,
+			p.lat AS last_lat,
+			p.lng AS last_lng
+		FROM devices d
+		LEFT JOIN LATERAL (
+			SELECT lat, lng
+			FROM positions
+			WHERE device_id = d.id AND timestamp < now()
+			ORDER BY timestamp DESC
+			LIMIT 1
+		) p ON true
 		ORDER BY d.id DESC`,
 	)
 	if err != nil {
@@ -268,15 +274,26 @@ func GetAllDevicesWithLastPosition() ([]Device, error) {
 	}
 	defer rows.Close()
 
-	var devices []Device
+	devices := make([]Device, 0, 64)
 	for rows.Next() {
 		var d Device
-		if err := rows.Scan(&d.ID, &d.IMEI, &d.SIM, &d.VehicleNo, &d.ChassisNo, &d.LastLat, &d.LastLng); err != nil {
-			log.Println("scan error:", err)
-			continue
+		if err := rows.Scan(
+			&d.ID,
+			&d.IMEI,
+			&d.SIM,
+			&d.VehicleNo,
+			&d.ChassisNo,
+			&d.LastLat,
+			&d.LastLng,
+		); err != nil {
+			return nil, fmt.Errorf("scan devices: %w", err)
 		}
 		devices = append(devices, d)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows devices: %w", err)
+	}
+
 	return devices, nil
 }
 
@@ -284,7 +301,9 @@ func GetAllDevicesWithVehicle() ([]DeviceWithVehicle, error) {
 	ctx := context.Background()
 	rows, err := Pool.Query(ctx,
 		`SELECT 
-			d.id, d.imei, d.sim_number,
+			d.id,
+			d.imei,
+			COALESCE(d.sim_number, '') AS sim_number,
 			v.id, v.vehicle_number, v.chassis_number,
 			v.owner_name, v.owner_id_number, v.owner_phone, v.owner_email,
 			p.lat AS last_lat, p.lng AS last_lng
