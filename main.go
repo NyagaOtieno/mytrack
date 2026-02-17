@@ -94,14 +94,6 @@ func main() {
 
 	// (Optional) Start your raw device listener safely if it exists in your project.
 	// If you don't have this function, delete these 2 lines.
-	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				log.Println("⚠️ startRawDeviceListener panicked:", r)
-			}
-		}()
-		startRawDeviceListener()
-	}()
 
 	// --- Device API ---
 	mux.Handle("/api/devices/create", corsMiddleware(storage.APIKeyAuthMiddleware(http.HandlerFunc(createDeviceHandler))))
