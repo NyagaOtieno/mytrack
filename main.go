@@ -1,5 +1,6 @@
 package main
 
+
 import (
 	"encoding/json"
 	"log"
@@ -10,6 +11,7 @@ import (
 
 	"fmb920-server/internal/api"
 	"fmb920-server/internal/storage"
+    "fmb920-server/internal/listener"
 
 	"github.com/joho/godotenv"
 	"golang.org/x/crypto/bcrypt"
@@ -91,6 +93,12 @@ func init() {
 // ----------------------- MAIN -----------------------
 func main() {
 	mux := http.NewServeMux()
+     
+	 // ------------------- DEVICE LISTENERS -------------------
+go listener.StartTCPListener(5027)        // Teltonika TCP (your existing)
+go listener.StartUDPListener(5027)        // Teltonika UDP (if you use UDP)
+go listener.StartGT06Listener(5023)       // NEW: GT06 TCP
+go listener.StartUniGuardListener(6800)   // NEW: UniGuard TCP
 
 	// (Optional) Start your raw device listener safely if it exists in your project.
 	// If you don't have this function, delete these 2 lines.
