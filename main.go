@@ -14,7 +14,7 @@ import (
 	"github.com/joho/godotenv"
 	"golang.org/x/crypto/bcrypt"
 )
-go startRawDeviceListener()
+
 
 // ----------------------- CORS MIDDLEWARE -----------------------
 func corsMiddleware(next http.Handler) http.Handler {
@@ -156,7 +156,8 @@ func createDeviceHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // devicesListHandler
-func devicesListHandler(w http.ResponseWriter, r *http.Request) {
+func devicesListHandler(w http.ResponseWriter, r *http.Request)
+go startRawDeviceListener() {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 		return
